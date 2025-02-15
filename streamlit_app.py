@@ -98,9 +98,17 @@ gender = st.radio("Gender", ("M", "F"))
 if st.button("Compute All Thresholds"):
     threshold_results = {}
 
-    # Compute classification thresholds for all measures
     for measure in cognitive_measures:
         trace = models[measure]
+
+        # Prepare X and y for each cognitive measure
+        X = df[['age', 'gender', 'education_year', measure]].copy()
+        X = pd.get_dummies(X, columns=['gender'], drop_first=True, dtype=int)  
+        y = (df['group'] == 'ci').astype(int).values  
+
+        scaler = StandardScaler()
+        num_cols = ['age', 'education_year', measure]
+        X[num_cols] = scaler.fit_transform(X[num_cols])
 
         # Compute optimal probability threshold (Youden Index) per measure
         optimal_threshold = get_optimal_threshold(trace, X, y, age, education_year, gender)
