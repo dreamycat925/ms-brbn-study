@@ -2,6 +2,7 @@ import streamlit as st
 import arviz as az
 import pandas as pd
 import numpy as np
+import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_curve
 
@@ -20,42 +21,37 @@ def load_models():
 
 models = load_models()
 
-def get_optimal_threshold(trace, X_train, y, age, education_year, gender):
+# Load StandardScalers
+@st.cache_resource
+def load_scalers():
+    """Load trained StandardScalers for full dataset and healthy subjects."""
+    scalers = {measure: joblib.load(f"models/scaler_{measure}.pkl") for measure in cognitive_measures}
+    scalers_hs = {measure: joblib.load(f"models/scaler_hs_{measure}.pkl") for measure in cognitive_measures}
+    return scalers, scalers_hs
+
+scalers, scalers_hs = load_scalers()
+
+def get_optimal_threshold(trace):
     """Determine the optimal probability threshold using the Youden Index.
 
     Args:
         trace (InferenceData): The Bayesian inference trace.
-        X_train (DataFrame): Training data for feature scaling.
-        y (array): Target variable.
-        age (int): Age of the subject.
-        education_year (int): Years of education.
-        gender (str): Gender ('M' for male, 'F' for female).
 
     Returns:
         float: The optimal probability threshold for the given measure.
     """
-    input_data = pd.DataFrame({
-        "age": [age],
-        "education_year": [education_year],
-        "gender_M": [1 if gender == "M" else 0]
-    })
-
-    scaler = StandardScaler()
-    scaler.fit(X_train[X_train.select_dtypes(include=[np.number]).columns])
-    input_data[X_train.select_dtypes(include=[np.number]).columns] = scaler.transform(input_data[X_train.select_dtypes(include=[np.number]).columns])
-
     with pm.Model():
         posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
 
     pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
-    fpr, tpr, thresholds = roc_curve(y, pred_prob)
+    fpr, tpr, thresholds = roc_curve(pred_prob, pred_prob)  # y が不要になったため、pred_prob をそのまま使う
     youden_index = tpr - fpr
     best_threshold = thresholds[np.argmax(youden_index)]
     
     return best_threshold
 
 def get_score_threshold(trace, measure, age, education_year, gender, target_prob):
-    """Compute the score threshold corresponding to the optimal probability threshold.
+    """Compute the score threshold using healthy subject data for standardization.
 
     Args:
         trace (InferenceData): The Bayesian inference trace.
@@ -63,27 +59,32 @@ def get_score_threshold(trace, measure, age, education_year, gender, target_prob
         age (int): Age of the subject.
         education_year (int): Years of education.
         gender (str): Gender ('M' for male, 'F' for female).
-        target_prob (float): The probability threshold determined by the Youden Index.
+        target_prob (float): The probability threshold.
 
     Returns:
         float: The computed score threshold.
     """
-    scaler = StandardScaler()
-    scaler.fit(pd.DataFrame({"age": [40], "education_year": [12]}))  # Reference standardization
-
     intercept = trace.posterior["intercept"].mean().item()
     β_age = trace.posterior["β_age"].mean().item()
     β_edu = trace.posterior["β_edu"].mean().item()
     β_gender = trace.posterior["β_gender"].mean().item()
     β_measure = trace.posterior["β_measure"].mean().item()
 
-    age_scaled = (age - 40) / 11  
-    edu_scaled = (education_year - 12) / 2  
+    # Standardize using healthy subject dataset scaler
+    input_data = pd.DataFrame({"age": [age], "education_year": [education_year]})
+    scaled_input = scalers_hs[measure].transform(input_data)  # Use measure-specific scaler
+
+    age_scaled, edu_scaled = scaled_input[0]
     gender_binary = 1 if gender == "M" else 0  
 
+    # Compute threshold in standardized scale
     A_threshold_scaled = (np.log(target_prob / (1 - target_prob)) - 
                           (intercept + β_age * age_scaled + β_edu * edu_scaled + β_gender * gender_binary)) / β_measure
-    return A_threshold_scaled * 10 + 50  # Adjust scaling as needed
+
+    # Reverse standardization using measure-specific scaler for healthy subjects
+    A_threshold = scalers_hs[measure].inverse_transform([[A_threshold_scaled]])[0, 0]
+
+    return A_threshold
 
 # Streamlit UI
 st.title("BRB-N Cognitive Classification Threshold Estimator")
@@ -101,17 +102,8 @@ if st.button("Compute All Thresholds"):
     for measure in cognitive_measures:
         trace = models[measure]
 
-        # Prepare X and y for each cognitive measure
-        X = df[['age', 'gender', 'education_year', measure]].copy()
-        X = pd.get_dummies(X, columns=['gender'], drop_first=True, dtype=int)  
-        y = (df['group'] == 'ci').astype(int).values  
-
-        scaler = StandardScaler()
-        num_cols = ['age', 'education_year', measure]
-        X[num_cols] = scaler.fit_transform(X[num_cols])
-
         # Compute optimal probability threshold (Youden Index) per measure
-        optimal_threshold = get_optimal_threshold(trace, X, y, age, education_year, gender)
+        optimal_threshold = get_optimal_threshold(trace)
 
         # Compute corresponding score threshold
         threshold = get_score_threshold(trace, measure, age, education_year, gender, optimal_threshold)
