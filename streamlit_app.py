@@ -8,7 +8,7 @@ from sklearn.metrics import roc_curve
 from sklearn.preprocessing import StandardScaler
 
 # Define y (based on the provided information)
-y = np.array([0] * 43 + [1] * 22)
+y_labels = np.array([0] * 43 + [1] * 22)
 
 # Define cognitive measures
 cognitive_measures = [
@@ -35,6 +35,7 @@ def load_scalers():
 
 scalers, scalers_hs = load_scalers()
 
+
 def get_optimal_threshold(trace):
     """Determine the optimal probability threshold using the Youden Index.
 
@@ -48,7 +49,9 @@ def get_optimal_threshold(trace):
         posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
 
     pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
-    fpr, tpr, thresholds = roc_curve(y, pred_prob) 
+
+    # Use loaded y_labels for ROC curve
+    fpr, tpr, thresholds = roc_curve(y_labels, pred_prob)  
     youden_index = tpr - fpr
     best_threshold = thresholds[np.argmax(youden_index)]
     
@@ -86,9 +89,10 @@ def get_score_threshold(trace, measure, age, education_year, gender, target_prob
                           (intercept + β_age * age_scaled + β_edu * edu_scaled + β_gender * gender_binary)) / β_measure
 
     # Reverse standardization using measure-specific scaler for healthy subjects
-    A_threshold = scalers_hs[measure].inverse_transform([[A_threshold_scaled]])[0, 0]
+    A_threshold_original = scalers_hs[measure].inverse_transform([[A_threshold_scaled]])[0, 0]
 
-    return A_threshold
+    return A_threshold_original
+
 
 # Streamlit UI
 st.title("BRB-N Cognitive Classification Threshold Estimator")
