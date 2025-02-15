@@ -21,7 +21,7 @@ cognitive_measures = [
 @st.cache_resource
 def load_models():
     """Load all Bayesian logistic regression models from the models/ directory."""
-    return {measure: joblib.load(f"models/bayesian_model_{measure}.nc") for measure in cognitive_measures}
+    return {measure: joblib.load(f"models/bayesian_model_{measure}.pkl") for measure in cognitive_measures}
 
 models = load_models()
 
