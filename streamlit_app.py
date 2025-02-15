@@ -46,15 +46,15 @@ def get_optimal_threshold(trace, y_labels):
         float: The optimal probability threshold for the given measure.
     """
 
-        with pm.Model():
-            posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
+    with pm.Model():
+        posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
     
-        pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
-        fpr, tpr, thresholds = roc_curve(y_labels, pred_prob)
-        youden_index = tpr - fpr
-        best_threshold = thresholds[np.argmax(youden_index)]
-        
-        return best_threshold
+    pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
+    fpr, tpr, thresholds = roc_curve(y_labels, pred_prob)
+    youden_index = tpr - fpr
+    best_threshold = thresholds[np.argmax(youden_index)]
+    
+    return best_threshold
 
 
 def get_score_threshold(trace, measure, age, education_year, gender, target_prob):
