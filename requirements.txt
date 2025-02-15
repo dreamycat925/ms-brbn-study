@@ -1,3 +1,4 @@
+streamlit
 pymc>=5.0
 arviz>=0.12
 numpy>=1.21
