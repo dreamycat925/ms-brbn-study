@@ -25,10 +25,10 @@ pip install -r requirements.txt
 The trained Bayesian logistic regression models for each cognitive measure are stored in the `models/` directory. To load a specific model, use the following command:
 
 ```python
-import arviz as az
+import joblib
 
 # Example: Load the SDMT model
-trace = az.from_netcdf("models/bayesian_model_SDMT.nc")
+trace = joblib.load("models/bayesian_model_SDMT.pkl")
 ```
 
 ### Running the Analysis
@@ -36,11 +36,11 @@ Instead of executing `bayesian_logistic.py` directly, users should load the pret
 
 ```python
 
-import arviz as az
+import joblib
 from bayesian_logistic import get_optimal_threshold, get_score_threshold
 
 # Load a trained model
-trace = az.from_netcdf("models/bayesian_model_SDMT.nc")
+trace = joblib.load("models/bayesian_model_SDMT.pkl")
 
 # Define demographic information
 age = 40
