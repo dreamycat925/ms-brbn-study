@@ -8,7 +8,7 @@ This repository contains the Bayesian logistic regression analysis and trained m
 
 - `bayesian_logistic.py` - Python script for Bayesian logistic regression, odds ratio estimation, and posterior probability calculation
 - `requirements.txt` - List of required Python libraries
-- `model.pkl` - Trained Bayesian logistic regression model (if applicable)
+- `models/` - Directory containing trained Bayesian logistic regression models for each cognitive measure
 
 ## Getting Started
 
@@ -20,17 +20,46 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
+### Model Location and Loading
+
+The trained Bayesian logistic regression models for each cognitive measure are stored in the `models/` directory. To load a specific model, use the following command:
+
+```python
+import arviz as az
+
+# Example: Load the SDMT model
+trace = az.from_netcdf("models/bayesian_model_SDMT.nc")
+```
+
 ### Running the Analysis
+Instead of executing `bayesian_logistic.py` directly, users should load the pretrained model and perform the desired computations. Below is an example workflow:
 
-Execute the Bayesian logistic regression model to obtain odds ratios and posterior probabilities:
+```python
 
-```bash
-python bayesian_logistic.py
+import arviz as az
+from bayesian_logistic import get_optimal_threshold, get_score_threshold
+
+# Load a trained model
+trace = az.from_netcdf("models/bayesian_model_SDMT.nc")
+
+# Define demographic information
+age = 40
+education_year = 12
+gender = "M"
+
+# Compute classification thresholds
+optimal_threshold = get_optimal_threshold(trace, X, y, age=age, education_year=education_year, gender=gender)
+score_threshold = get_score_threshold(trace, df_hs, "A_col", target_prob=optimal_threshold, age=age, education_year=education_year, gender=gender)
+
+print(f"Optimal probability threshold: {optimal_threshold:.3f}")
+print(f"Score threshold: {score_threshold:.3f}")
 ```
 
 The script will output:
+
 - Odds Ratios (ORs) and their credible intervals
 - Posterior probabilities for each predictor
+- Classification thresholds for cognitive measures
 
 ## Model Details
 
@@ -81,11 +110,12 @@ For full reproducibility:
 If you use this code or model in your research, please cite our paper:
 
 ```text
-[Your Paper Title]
-[Your Authors]
+[Our Paper Title]
+[Our Authors]
 [Journal Name, Year]
 [DOI or URL]
 ```
+*Citation details will be added after the publication of our paper.*
 
 ## License
 
