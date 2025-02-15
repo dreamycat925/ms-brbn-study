@@ -45,25 +45,16 @@ def get_optimal_threshold(trace, y_labels):
     Returns:
         float: The optimal probability threshold for the given measure.
     """
-    
-    # Check if posterior_predictive exists
-    st.write("Available trace groups:", trace.groups())
 
-    if "posterior_predictive" not in trace.groups():
-        st.error("posterior_predictive is missing. Recomputing...")
         with pm.Model():
-            posterior_pred = pm.sample_posterior_predictive(trace)
-            trace.add_groups(posterior_predictive=posterior_pred)
-
-    # Extract predicted probabilities safely
-    posterior_pred = np.asarray(trace.posterior_predictive["y"]).mean(axis=(0, 1))
-
-    # Compute ROC curve using actual y_labels
-    fpr, tpr, thresholds = roc_curve(y_labels, posterior_pred)
-    youden_index = tpr - fpr
-    best_threshold = thresholds[np.argmax(youden_index)]
+            posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
     
-    return best_threshold
+        pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
+        fpr, tpr, thresholds = roc_curve(y_labels, pred_prob)
+        youden_index = tpr - fpr
+        best_threshold = thresholds[np.argmax(youden_index)]
+        
+        return best_threshold
 
 
 def get_score_threshold(trace, measure, age, education_year, gender, target_prob):
