@@ -35,23 +35,24 @@ def load_scalers():
 
 scalers, scalers_hs = load_scalers()
 
-
-def get_optimal_threshold(trace):
+def get_optimal_threshold(trace, y_labels):
     """Determine the optimal probability threshold using the Youden Index.
 
     Args:
         trace (InferenceData): The Bayesian inference trace.
+        y_labels (array-like): The true labels (0 for healthy, 1 for patient).
 
     Returns:
         float: The optimal probability threshold for the given measure.
     """
-    with pm.Model():
-        posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
+    # Extract predicted probabilities from posterior_predictive
+    if "posterior_predictive" not in trace.groups():
+        raise ValueError("posterior_predictive is missing in trace. Ensure the model was saved correctly.")
 
-    pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
+    posterior_pred = trace.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
 
-    # Use loaded y_labels for ROC curve
-    fpr, tpr, thresholds = roc_curve(y_labels, pred_prob)  
+    # Compute ROC curve using actual y_labels
+    fpr, tpr, thresholds = roc_curve(y_labels, posterior_pred)
     youden_index = tpr - fpr
     best_threshold = thresholds[np.argmax(youden_index)]
     
