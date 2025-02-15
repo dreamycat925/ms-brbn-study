@@ -7,6 +7,9 @@ import streamlit as st
 from sklearn.metrics import roc_curve
 from sklearn.preprocessing import StandardScaler
 
+# Define y (based on the provided information)
+y = np.array([0] * 43 + [1] * 22)
+
 # Define cognitive measures
 cognitive_measures = [
     "SRT-LTS", "SRT-cLTS", "SPART-correct", "SPART-incorrect", "SDMT",
@@ -45,7 +48,7 @@ def get_optimal_threshold(trace):
         posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
 
     pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
-    fpr, tpr, thresholds = roc_curve(pred_prob, pred_prob)  # y が不要になったため、pred_prob をそのまま使う
+    fpr, tpr, thresholds = roc_curve(y, pred_prob) 
     youden_index = tpr - fpr
     best_threshold = thresholds[np.argmax(youden_index)]
     
