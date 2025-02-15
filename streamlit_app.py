@@ -120,7 +120,7 @@ if st.button("Compute All Thresholds"):
         trace = models[measure]
 
         # Compute optimal probability threshold (Youden Index) per measure
-        optimal_threshold = get_optimal_threshold(trace)
+        optimal_threshold = get_optimal_threshold(trace, y_labels)
 
         # Compute corresponding score threshold
         threshold = get_score_threshold(trace, measure, age, education_year, gender, optimal_threshold)
