@@ -45,19 +45,15 @@ def get_optimal_threshold(trace, y_labels):
     Returns:
         float: The optimal probability threshold for the given measure.
     """
-    import streamlit as st  # Streamlit の UI にデバッグ情報を表示
+    
+    # Check if posterior_predictive exists
+    st.write("Available trace groups:", trace.groups())
 
-    # **Debug: Display available keys in posterior_predictive**
     if "posterior_predictive" not in trace.groups():
-        st.error("Error: `posterior_predictive` is missing in trace. Ensure the model was saved correctly.")
-        raise KeyError("posterior_predictive does not exist in trace.")
-
-    available_keys = list(trace.posterior_predictive.data_vars)
-    st.write("Available posterior_predictive keys:", available_keys)
-
-    if "y" not in available_keys:
-        st.error("Error: `y` is missing in `posterior_predictive`. Please check your saved model.")
-        raise KeyError("posterior_predictive['y'] is missing.")
+        st.error("posterior_predictive is missing. Recomputing...")
+        with pm.Model():
+            posterior_pred = pm.sample_posterior_predictive(trace)
+            trace.add_groups(posterior_predictive=posterior_pred)
 
     # Extract predicted probabilities safely
     posterior_pred = np.asarray(trace.posterior_predictive["y"]).mean(axis=(0, 1))
