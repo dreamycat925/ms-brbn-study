@@ -10,6 +10,9 @@ from sklearn.preprocessing import StandardScaler
 # Define y (based on the provided information)
 y_labels = np.array([0] * 43 + [1] * 22)
 
+# best thresholds
+best_thresholds = {'SRT-LTS': 0.4375, 'SRT-cLTS': 0.4876666666666667, 'SPART-correct': 0.2753333333333333, 'SPART-incorrect': 0.38816666666666666, 'SDMT': 0.622, 'PASAT 3': 0.528, 'PASAT 2': 0.43516666666666665, 'SRT delayed recall': 0.4701666666666667, 'SPART delayed correct response': 0.37733333333333335, 'SPART delayed incorrect response': 0.31183333333333335, 'WLG-correct': 0.3975, 'WLG-repeat': 0.3915, 'WLG-incorrect': 0.385}
+
 # Define cognitive measures
 cognitive_measures = [
     "SRT-LTS", "SRT-cLTS", "SPART-correct", "SPART-incorrect", "SDMT",
@@ -35,64 +38,6 @@ def load_scalers():
 
 scalers, scalers_hs = load_scalers()
 
-def get_optimal_threshold(trace, y_labels):
-    """Determine the optimal probability threshold using the Youden Index.
-
-    Args:
-        trace (InferenceData): The Bayesian inference trace.
-        y_labels (array-like): The true labels (0 for healthy, 1 for patient).
-
-    Returns:
-        float: The optimal probability threshold for the given measure.
-    """
-
-    with pm.Model():
-        posterior_pred = pm.sample_posterior_predictive(trace, var_names=["y"])
-    
-    pred_prob = posterior_pred.posterior_predictive["y"].mean(dim=["chain", "draw"]).values  
-    fpr, tpr, thresholds = roc_curve(y_labels, pred_prob)
-    youden_index = tpr - fpr
-    best_threshold = thresholds[np.argmax(youden_index)]
-    
-    return best_threshold
-
-
-def get_score_threshold(trace, measure, age, education_year, gender, target_prob):
-    """Compute the score threshold using healthy subject data for standardization.
-
-    Args:
-        trace (InferenceData): The Bayesian inference trace.
-        measure (str): The cognitive measure to evaluate.
-        age (int): Age of the subject.
-        education_year (int): Years of education.
-        gender (str): Gender ('M' for male, 'F' for female).
-        target_prob (float): The probability threshold.
-
-    Returns:
-        float: The computed score threshold.
-    """
-    intercept = trace.posterior["intercept"].mean().item()
-    β_age = trace.posterior["β_age"].mean().item()
-    β_edu = trace.posterior["β_edu"].mean().item()
-    β_gender = trace.posterior["β_gender"].mean().item()
-    β_measure = trace.posterior["β_measure"].mean().item()
-
-    # Standardize using healthy subject dataset scaler
-    input_data = pd.DataFrame({"age": [age], "education_year": [education_year]})
-    scaled_input = scalers_hs[measure].transform(input_data)  # Use measure-specific scaler
-
-    age_scaled, edu_scaled = scaled_input[0]
-    gender_binary = 1 if gender == "M" else 0  
-
-    # Compute threshold in standardized scale
-    A_threshold_scaled = (np.log(target_prob / (1 - target_prob)) - 
-                          (intercept + β_age * age_scaled + β_edu * edu_scaled + β_gender * gender_binary)) / β_measure
-
-    # Reverse standardization using measure-specific scaler for healthy subjects
-    A_threshold_original = scalers_hs[measure].inverse_transform([[A_threshold_scaled]])[0, 0]
-
-    return A_threshold_original
-
 
 # Streamlit UI
 st.title("BRB-N Cognitive Classification Threshold Estimator")
@@ -103,19 +48,41 @@ age = st.number_input("Age", min_value=18, max_value=90, value=40)
 education_year = st.number_input("Years of Education", min_value=6, max_value=20, value=12)
 gender = st.radio("Gender", ("M", "F"))
 
+def get_optimal_score(trace, scaler, target_prob, age, education_year, gender):
+    """ 
+    年齢・教育歴・性別を入力し、ベイズモデルの事後分布を用いて
+    認知検査スコアの最適閾値を求める関数
+    """
+    
+    # 事後分布の平均値（MAP推定）
+    intercept = trace.posterior["intercept"].mean().item()
+    β_age = trace.posterior["β_age"].mean().item()
+    β_edu = trace.posterior["β_edu"].mean().item()
+    β_gender = trace.posterior["β_gender"].mean().item()
+    β_measure = trace.posterior["β_measure"].mean().item()
+
+    # 標準化 (scaler から取得)
+    age_scaled = (age - scaler.mean_[0]) / scaler.scale_[0]
+    edu_scaled = (education_year - scaler.mean_[1]) / scaler.scale_[1]
+    gender_binary = 1 if gender == "M" else 0  # 性別を数値化
+
+    # `A_col` のスコアの閾値を計算（p = sigmoid(intercept + ... + β_measure * A) の逆算）
+    A_threshold_scaled = (np.log(target_prob / (1 - target_prob)) - 
+                          (intercept + β_age * age_scaled + β_edu * edu_scaled + β_gender * gender_binary)) / β_measure
+    
+    # 逆標準化（元のスコアに戻す）
+    A_threshold = A_threshold_scaled * scaler.scale_[2] + scaler.mean_[2]  
+
+    return A_threshold
+
 # Compute thresholds automatically using Youden Index
 if st.button("Compute All Thresholds"):
-    threshold_results = {}
-
     for measure in cognitive_measures:
         trace = models[measure]
+        _, scaler_hs = load_scalers[measure]
 
         # Compute optimal probability threshold (Youden Index) per measure
-        optimal_threshold = get_optimal_threshold(trace, y_labels)
-
-        # Compute corresponding score threshold
-        threshold = get_score_threshold(trace, measure, age, education_year, gender, optimal_threshold)
-        threshold_results[measure] = threshold
+        optimal_threshold = get_optimal_score(trace, scaler_hs,  best_thresholds[measure], age, education_year, gender)
 
     # Display results
     st.write("### Computed Classification Thresholds")
