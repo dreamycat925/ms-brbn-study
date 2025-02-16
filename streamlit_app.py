@@ -90,5 +90,5 @@ if st.button("Compute All Thresholds"):
 
     # Display results
     st.write("### Computed Classification Thresholds")
-    threshold_df = pd.DataFrame(list(optimal_thresholds.items()), columns=["Cognitive Measure", "Threshold"])
-    st.dataframe(threshold_df)
+    threshold_df = pd.DataFrame(optimal_thresholds.values(), index=optimal_thresholds.keys()).T
+    st.table(threshold_df)
