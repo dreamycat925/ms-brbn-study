@@ -75,16 +75,20 @@ def get_optimal_score(trace, scaler, target_prob, age, education_year, gender):
 
     return A_threshold
 
+# results
+optimal_thresholds = {}
+
 # Compute thresholds automatically using Youden Index
 if st.button("Compute All Thresholds"):
     for measure in cognitive_measures:
         trace = models[measure]
-        _, scaler_hs = load_scalers[measure]
+        scaler_hs = scalers_hs[measure]
+        best_threshold = best_thresholds[measure]
 
         # Compute optimal probability threshold (Youden Index) per measure
-        optimal_threshold = get_optimal_score(trace, scaler_hs,  best_thresholds[measure], age, education_year, gender)
+        optimal_thresholds[measure] = get_optimal_score(trace, scaler_hs,  best_threshold, age, education_year, gender)
 
     # Display results
     st.write("### Computed Classification Thresholds")
-    threshold_df = pd.DataFrame(list(threshold_results.items()), columns=["Cognitive Measure", "Threshold"])
+    threshold_df = pd.DataFrame(list(optimal_thresholds.items()), columns=["Cognitive Measure", "Threshold"])
     st.dataframe(threshold_df)
