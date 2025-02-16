@@ -7,6 +7,7 @@ This repository contains the Bayesian logistic regression analysis and trained m
 ## Repository Contents
 
 - `bayesian_logistic.py` - Python script for Bayesian logistic regression, odds ratio estimation, and posterior probability calculation
+- `streamlit_app.py` - Streamlit app for interactive threshold estimation
 - `requirements.txt` - List of required Python libraries
 - `models/` - Directory containing trained Bayesian logistic regression models for each cognitive measure
 
@@ -35,9 +36,9 @@ trace = joblib.load("models/bayesian_model_SDMT.pkl")
 Instead of executing `bayesian_logistic.py` directly, users should load the pretrained model and perform the desired computations. Below is an example workflow:
 
 ```python
-
 import joblib
-from bayesian_logistic import get_optimal_threshold, get_score_threshold
+from bayesian_logistic import get_optimal_score
+from sklearn.preprocessing import StandardScaler
 
 # Load a trained model
 trace = joblib.load("models/bayesian_model_SDMT.pkl")
@@ -46,12 +47,17 @@ trace = joblib.load("models/bayesian_model_SDMT.pkl")
 age = 40
 education_year = 12
 gender = "M"
+target_prob = 0.7  # Example threshold probability
 
-# Compute classification thresholds
-optimal_threshold = get_optimal_threshold(trace, X, y, age=age, education_year=education_year, gender=gender)
-score_threshold = get_score_threshold(trace, df_hs, "A_col", target_prob=optimal_threshold, age=age, education_year=education_year, gender=gender)
+# Use the correct scaler (healthy control group)
+scaler_hs = StandardScaler()
+scaler_hs.fit(df_hs[['age', 'education_year', "A_col"]])
 
-print(f"Optimal probability threshold: {optimal_threshold:.3f}")
+# Compute the optimal cognitive measure threshold
+score_threshold = get_optimal_score(
+    trace, scaler_hs, target_prob=target_prob, age=age, education_year=education_year, gender=gender
+)
+
 print(f"Score threshold: {score_threshold:.3f}")
 ```
 
@@ -73,30 +79,32 @@ The script will output:
 
 The repository includes functions for estimating classification thresholds:
 
-- `get_optimal_threshold()`: Determines the optimal probability threshold for classification using the Youden Index
-- `get_score_threshold()`: Computes the corresponding cognitive score threshold for classification
+- `get_optimal_score()`: Determines the optimal probability threshold for classification using the Youden Index. Computes the corresponding cognitive score threshold for classification
 
 To estimate classification thresholds for a specific demographic profile:
 
 ```python
-optimal_threshold = get_optimal_threshold(
+# Define demographic information
+age = 40
+education_year = 12
+gender = "M"
+target_prob = 0.7  # Example threshold probability
+
+# Use the correct scaler (healthy control group)
+scaler_hs = StandardScaler()
+scaler_hs.fit(df_hs[['age', 'education_year', "A_col"]])
+
+# Compute the optimal cognitive measure threshold
+score_threshold = get_optimal_score(
     trace_bayes_logit, 
-    X, 
-    y, 
-    age=40, 
-    education_year=12, 
-    gender="M"
+    scaler_hs,  # Ensure the scaler is based on healthy control data
+    target_prob=target_prob, 
+    age=age, 
+    education_year=education_year, 
+    gender=gender
 )
 
-score_threshold = get_score_threshold(
-    trace_bayes_logit, 
-    df_hs, 
-    "A_col", 
-    target_prob=optimal_threshold, 
-    age=40, 
-    education_year=12, 
-    gender="M"
-)
+print(f"Score threshold: {score_threshold:.3f}")
 ```
 
 ## Reproducibility
