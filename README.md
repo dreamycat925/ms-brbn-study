@@ -107,6 +107,30 @@ score_threshold = get_optimal_score(
 print(f"Score threshold: {score_threshold:.3f}")
 ```
 
+### Streamlit App Usage
+
+A Streamlit app (`streamlit_app.py`) has been added for interactive threshold estimation.  
+You can access the live application here:
+
+👉 **[Try the Web App](https://ms-brbn-study-dfj5etjwjf78trz4u7d9jk.streamlit.app/)** 👈
+
+Alternatively, you can run it locally:
+
+```bash
+streamlit run streamlit_app.py
+```
+### Features:
+- Compute optimal classification thresholds interactively
+- Display results in a **scroll-free, horizontally aligned table**
+- Toggle between different cognitive measures
+
+## Data Presentation in Streamlit
+To improve visibility, the classification thresholds are presented in a horizontal table format using the following command:
+
+```python
+st.dataframe(df.T.style.set_properties(**{'text-align': 'center'}))
+```
+
 ## Reproducibility
 
 For full reproducibility:
