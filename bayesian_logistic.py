@@ -57,15 +57,15 @@ for A_col, f_col in zip(A_cols, formal_cols):
     print(summary)
     
     # オッズ比を計算
-    odds_ratios = np.exp(summary['mean'])
+    odds_ratios = np.exp(summary['median'])
     print("\nオッズ比:")
     print(odds_ratios)
 
-    odds_ratios_lower = np.exp(summary['hdi_3%'])
+    odds_ratios_lower = np.exp(summary['hdi_2.5%'])
     print("\nオッズ比下限:")
     print(odds_ratios_lower)
 
-    odds_ratios_upper = np.exp(summary['hdi_97%'])
+    odds_ratios_upper = np.exp(summary['hdi_97.5%'])
     print("\nオッズ比上限:")
     print(odds_ratios_upper)
     
