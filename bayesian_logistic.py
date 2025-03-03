@@ -53,7 +53,7 @@ for A_col, f_col in zip(A_cols, formal_cols):
         trace_bayes_logit = pm.sample(2000, tune=1000, target_accept=0.98, return_inferencedata=True)
     
     # 事後分布の要約
-    summary = az.summary(trace_bayes_logit)
+    summary = az.summary(trace_bayes_logit, stat_funcs={"median": np.median}, hdi_prob=0.95)
     print(summary)
     
     # オッズ比を計算
