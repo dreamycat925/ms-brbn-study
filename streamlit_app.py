@@ -86,9 +86,30 @@ if st.button("Compute All Thresholds"):
         best_threshold = best_thresholds[measure]
 
         # Compute optimal probability threshold (Youden Index) per measure
-        optimal_thresholds[measure] = get_optimal_score(trace, scaler_hs,  best_threshold, age, education_year, gender)
+        optimal_thresholds[measure] = get_optimal_score(
+            trace, scaler_hs, best_threshold, age, education_year, gender
+        )
 
-    # Display results
+    # 表示形式を調整して表示
     st.write("### Computed Classification Thresholds")
-    threshold_df = pd.DataFrame(optimal_thresholds.values(), index=optimal_thresholds.keys()).T
-    st.dataframe(threshold_df)
+
+    # 異常値が「高い」場合（→ 正常は以下）
+    abnormal_high_measures = {
+        "SPART-incorrect", "SDMT", "SPART delayed incorrect response",
+        "WLG-repeat", "WLG-incorrect"
+    }
+
+    display_thresholds = {}
+
+    for measure, value in optimal_thresholds.items():
+        if measure in abnormal_high_measures:
+            value_display = int(np.floor(value))  # 以下 → 切り捨て
+            display = f"{value_display} or less"
+        else:
+            value_display = int(np.ceil(value))   # 以上 → 切り上げ
+            display = f"{value_display} or more"
+        display_thresholds[measure] = display
+
+    # DataFrame で表示
+    display_df = pd.DataFrame(display_thresholds.values(), index=display_thresholds.keys(), columns=["Normal Range"])
+    st.dataframe(display_df)
