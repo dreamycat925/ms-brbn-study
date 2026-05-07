@@ -103,10 +103,10 @@ if st.button("Compute All Thresholds"):
 
     for measure, value in optimal_thresholds.items():
         if measure in abnormal_high_measures:
-            value_display = int(np.floor(value))  # 以下 → 切り捨て
+            value_display = int(np.floor(value)) 
             display = f"{value_display} or less"
         else:
-            value_display = int(np.ceil(value))   # 以上 → 切り上げ
+            value_display = int(np.ceil(value)) 
             display = f"{value_display} or more"
         display_thresholds[measure] = display
 
